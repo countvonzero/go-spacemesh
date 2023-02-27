@@ -12,6 +12,7 @@ import (
 	"github.com/spacemeshos/go-spacemesh/p2p"
 	"github.com/spacemeshos/go-spacemesh/p2p/pubsub"
 	"github.com/spacemeshos/go-spacemesh/signing"
+	"github.com/spacemeshos/go-spacemesh/sql"
 )
 
 var errMalformedData = errors.New("malformed data")
@@ -60,10 +61,10 @@ func (h *Handler) HandleSyncedMalfeasanceProof(ctx context.Context, peer p2p.Pee
 
 func (h *Handler) handleProof(ctx context.Context, peer p2p.Peer, data []byte) error {
 	var (
-		p         types.MalfeasanceGossip
-		nodeID    types.NodeID
-		malicious bool
-		err       error
+		p      types.MalfeasanceGossip
+		nodeID types.NodeID
+		proof  *types.MalfeasanceProof
+		err    error
 	)
 	logger := h.logger.WithContext(ctx)
 	if err = codec.Decode(data, &p); err != nil {
@@ -101,9 +102,9 @@ func (h *Handler) handleProof(ctx context.Context, peer p2p.Peer, data []byte) e
 		}
 	}
 
-	if malicious, err = h.cdb.IsMalicious(nodeID); err != nil {
+	if proof, err = h.cdb.GetMalfeasanceProof(nodeID); err != nil && !errors.Is(err, sql.ErrNotFound) {
 		return fmt.Errorf("check known malicious: %w", err)
-	} else if malicious {
+	} else if proof != nil {
 		if peer == h.self {
 			// node saves malfeasance proof eagerly/atomically with the malicious data.
 			updateMetrics(p.Proof)

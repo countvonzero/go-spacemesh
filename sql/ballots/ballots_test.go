@@ -33,12 +33,12 @@ func TestLayer(t *testing.T) {
 		require.Equal(t, &ballots[i], ballot)
 	}
 
-	require.NoError(t, identities.SetMalicious(db, pub, []byte("proof")))
+	require.NoError(t, identities.SaveMalfeasanceProof(db, pub, types.MultipleBallots, []byte("proof")))
 	rst, err = Layer(db, start)
 	require.NoError(t, err)
 	require.Len(t, rst, len(ballots))
 	for _, ballot := range rst {
-		require.True(t, ballot.IsMalicious())
+		require.False(t, ballot.IsMalicious())
 	}
 }
 
@@ -56,10 +56,10 @@ func TestAdd(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &ballot, stored)
 
-	require.NoError(t, identities.SetMalicious(db, pub, []byte("proof")))
+	require.NoError(t, identities.SaveMalfeasanceProof(db, pub, types.MultipleBallots, []byte("proof")))
 	stored, err = Get(db, ballot.ID())
 	require.NoError(t, err)
-	require.True(t, stored.IsMalicious())
+	require.False(t, stored.IsMalicious())
 }
 
 func TestHas(t *testing.T) {

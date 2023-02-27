@@ -8,27 +8,56 @@ import (
 	"github.com/spacemeshos/go-spacemesh/sql"
 )
 
-// SetMalicious records identity as malicious.
-func SetMalicious(db sql.Executor, nodeID types.NodeID, proof []byte) error {
-	_, err := db.Exec(`insert into identities (pubkey, proof)
-	values (?1, ?2)
+type MaliciousType uint
+
+const (
+	Invalid MaliciousType = iota
+	Atx
+	Ballot
+	Hare
+)
+
+func translate(proofType byte) (MaliciousType, error) {
+	switch proofType {
+	case types.MultipleATXs:
+		return Atx, nil
+	case types.MultipleBallots:
+		return Ballot, nil
+	case types.HareEquivocation:
+		return Hare, nil
+	}
+	return Invalid, fmt.Errorf("invalid type %v", proofType)
+}
+
+// SaveMalfeasanceProof records identity as malicious.
+func SaveMalfeasanceProof(db sql.Executor, nodeID types.NodeID, proofType byte, proof []byte) error {
+	typ, err := translate(proofType)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`insert into identities (pubkey, proof_type, proof)
+	values (?1, ?2, ?3)
 	on conflict do nothing;`,
 		func(stmt *sql.Statement) {
 			stmt.BindBytes(1, nodeID.Bytes())
-			stmt.BindBytes(2, proof)
+			stmt.BindInt64(2, int64(typ))
+			stmt.BindBytes(3, proof)
 		}, nil,
 	)
 	if err != nil {
-		return fmt.Errorf("set malicious %v: %w", nodeID, err)
+		return fmt.Errorf("set malicious %v, type %v: %w", nodeID, typ, err)
 	}
 	return nil
 }
 
 // IsMalicious returns true if identity is known to be malicious.
+// cause all types of proofs to cancel identities after the following issue is resolved.
+// https://github.com/spacemeshos/go-spacemesh/issues/4067
 func IsMalicious(db sql.Executor, nodeID types.NodeID) (bool, error) {
-	rows, err := db.Exec("select 1 from identities where pubkey = ?1;",
+	rows, err := db.Exec("select 1 from identities where pubkey = ?1 and proof_type = ?2;",
 		func(stmt *sql.Statement) {
 			stmt.BindBytes(1, nodeID.Bytes())
+			stmt.BindInt64(2, int64(Atx))
 		}, nil)
 	if err != nil {
 		return false, fmt.Errorf("is malicious %v: %w", nodeID, err)
@@ -72,7 +101,9 @@ func GetMalfeasanceBlob(db sql.Executor, nodeID []byte) ([]byte, error) {
 	return proof, nil
 }
 
-func GetMalicious(db sql.Executor) ([]types.NodeID, error) {
+// IDsWithMalfeasanceProof returns the list of malicious IDs.
+// FIXME: this query should be bounded.
+func IDsWithMalfeasanceProof(db sql.Executor) ([]types.NodeID, error) {
 	var (
 		result []types.NodeID
 		err    error

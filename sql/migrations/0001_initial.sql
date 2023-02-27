@@ -2,7 +2,7 @@ CREATE TABLE blocks
 (
     id       CHAR(20) PRIMARY KEY,
     layer    INT NOT NULL,
-    validity SMALL INT,
+    validity SMALLINT,
     block    BLOB
 ) WITHOUT ROWID;
 CREATE INDEX blocks_by_layer ON blocks (layer, id asc);
@@ -18,15 +18,16 @@ CREATE INDEX ballots_by_layer_by_pubkey ON ballots (layer asc, pubkey);
 
 CREATE TABLE identities
 (
-    pubkey VARCHAR PRIMARY KEY,
-    proof  BLOB
+    pubkey     VARCHAR PRIMARY KEY,
+    proof_type SMALLINT NOT NULL,
+    proof      BLOB
 ) WITHOUT ROWID;
 
 CREATE TABLE layers
 (
     id              INT PRIMARY KEY DESC,
-    weak_coin       SMALL INT,
-    processed       SMALL INT,
+    weak_coin       SMALLINT,
+    processed       SMALLINT,
     applied_block   VARCHAR,
     state_hash      CHAR(32),
     aggregated_hash CHAR(32)

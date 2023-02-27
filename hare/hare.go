@@ -545,10 +545,10 @@ func (h *Hare) malfeasanceLoop(ctx context.Context) {
 			}
 			nodeID := types.BytesToNodeID(gossip.Eligibility.PubKey)
 			logger := h.WithContext(ctx).WithFields(nodeID)
-			if malicious, err := h.cdb.IsMalicious(nodeID); err != nil {
+			if proof, err := h.cdb.GetMalfeasanceProof(nodeID); err != nil && !errors.Is(err, sql.ErrNotFound) {
 				logger.With().Error("failed to check identity", log.Err(err))
 				continue
-			} else if malicious {
+			} else if proof != nil {
 				logger.Debug("known malicious identity")
 				continue
 			}

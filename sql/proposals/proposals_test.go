@@ -8,16 +8,13 @@ import (
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/sql"
 	"github.com/spacemeshos/go-spacemesh/sql/ballots"
-	"github.com/spacemeshos/go-spacemesh/sql/identities"
 )
 
 func TestAdd(t *testing.T) {
 	db := sql.InMemory()
 	pub := types.BytesToNodeID([]byte{1, 1})
 	ballot := types.NewExistingBallot(types.BallotID{1}, []byte{1, 1}, pub, types.BallotMetadata{})
-
 	require.NoError(t, ballots.Add(db, &ballot))
-	require.NoError(t, identities.SetMalicious(db, pub, []byte("proof")))
 	proposal := &types.Proposal{
 		InnerProposal: types.InnerProposal{
 			Ballot:   ballot,
@@ -36,9 +33,7 @@ func TestHas(t *testing.T) {
 	db := sql.InMemory()
 	pub := types.BytesToNodeID([]byte{1, 1})
 	ballot := types.NewExistingBallot(types.BallotID{1}, []byte{1, 1}, pub, types.BallotMetadata{})
-
 	require.NoError(t, ballots.Add(db, &ballot))
-	require.NoError(t, identities.SetMalicious(db, pub, []byte("proof")))
 	proposal := &types.Proposal{
 		InnerProposal: types.InnerProposal{
 			Ballot:   ballot,
@@ -61,10 +56,7 @@ func TestGet(t *testing.T) {
 
 	pub := types.BytesToNodeID([]byte{1, 1})
 	ballot := types.NewExistingBallot(types.BallotID{1}, []byte{1, 1}, pub, types.BallotMetadata{})
-
 	require.NoError(t, ballots.Add(db, &ballot))
-	require.NoError(t, identities.SetMalicious(db, pub, []byte("proof")))
-	ballot.SetMalicious()
 
 	proposal := &types.Proposal{
 		InnerProposal: types.InnerProposal{

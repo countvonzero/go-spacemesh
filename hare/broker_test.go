@@ -288,9 +288,9 @@ func TestBroker_HandleMaliciousHareMessage(t *testing.T) {
 	proof := types.MalfeasanceProof{
 		Layer: types.NewLayerID(1111),
 		Proof: types.Proof{
-			Type: types.MultipleBallots,
-			Data: &types.BallotProof{
-				Messages: [2]types.BallotProofMsg{{}, {}},
+			Type: types.MultipleATXs,
+			Data: &types.AtxProof{
+				Messages: [2]types.AtxProofMsg{{}, {}},
 			},
 		},
 	}

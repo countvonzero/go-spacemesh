@@ -810,7 +810,7 @@ func TestMesh_MaliciousBallots(t *testing.T) {
 	malProof, err = tm.AddBallot(context.Background(), &blts[1])
 	require.NoError(t, err)
 	require.NotNil(t, malProof)
-	require.True(t, blts[1].IsMalicious())
+	require.False(t, blts[1].IsMalicious())
 	require.EqualValues(t, types.MultipleBallots, malProof.Proof.Type)
 	proof, ok := malProof.Proof.Data.(*types.BallotProof)
 	require.True(t, ok)
@@ -820,21 +820,22 @@ func TestMesh_MaliciousBallots(t *testing.T) {
 	require.Equal(t, blts[1].Signature, proof.Messages[1].Signature)
 	mal, err = identities.IsMalicious(tm.cdb, nodeID)
 	require.NoError(t, err)
-	require.True(t, mal)
+	require.False(t, mal)
 	saved, err = identities.GetMalfeasanceProof(tm.cdb, nodeID)
 	require.NoError(t, err)
 	require.EqualValues(t, malProof, saved)
 	expected := malProof
 
-	// third one will NOT generate another MalfeasanceProof
+	tm.mockClock.EXPECT().CurrentLayer().Return(types.NewLayerID(11))
 	malProof, err = tm.AddBallot(context.Background(), &blts[2])
 	require.NoError(t, err)
-	require.Nil(t, malProof)
-	// but identity is still malicious
+	require.NotNil(t, malProof)
+	// but the old proof remains
 	mal, err = identities.IsMalicious(tm.cdb, nodeID)
 	require.NoError(t, err)
-	require.True(t, mal)
+	require.False(t, mal)
 	saved, err = identities.GetMalfeasanceProof(tm.cdb, nodeID)
 	require.NoError(t, err)
 	require.EqualValues(t, expected, saved)
+	require.NotEqualValues(t, malProof, saved)
 }

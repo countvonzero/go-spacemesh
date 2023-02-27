@@ -202,7 +202,7 @@ func (b *Broker) handleMessage(ctx context.Context, msg []byte) error {
 			log.Err(err),
 		)
 		return err
-	} else if proof != nil {
+	} else if proof != nil && proof.Proof.Type == types.MultipleATXs {
 		// when hare receives a hare gossip from a malicious identity,
 		// - gossip its malfeasance + eligibility proofs to the network
 		// - relay the eligibility proof to the consensus process

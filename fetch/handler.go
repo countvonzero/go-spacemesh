@@ -39,7 +39,7 @@ func newHandler(cdb *datastore.CachedDB, bs *datastore.BlobStore, m meshProvider
 
 // handleEpochInfoReq returns the ATXs published in the specified epoch.
 func (h *handler) handleMaliciousIDsReq(ctx context.Context, _ []byte) ([]byte, error) {
-	nodes, err := identities.GetMalicious(h.cdb)
+	nodes, err := identities.IDsWithMalfeasanceProof(h.cdb)
 	if err != nil {
 		h.logger.WithContext(ctx).With().Warning("failed to get malicious IDs", log.Err(err))
 		return nil, err

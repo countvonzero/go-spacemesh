@@ -244,7 +244,7 @@ func newAtx(t *testing.T, published types.EpochID) *types.VerifiedActivationTx {
 
 	signer, err := signing.NewEdSigner()
 	require.NoError(t, err)
-	activation.SignAndFinalizeAtx(signer, atx)
+	require.NoError(t, activation.SignAndFinalizeAtx(signer, atx))
 	atx.SetEffectiveNumUnits(atx.NumUnits)
 	atx.SetReceived(time.Now())
 	vatx, err := atx.Verify(0, 1)
@@ -315,7 +315,7 @@ func TestHandleMaliciousIDsReq(t *testing.T) {
 			for i := 0; i < tc.numBad; i++ {
 				nid := types.NodeID{byte(i + 1)}
 				bad = append(bad, nid)
-				require.NoError(t, identities.SetMalicious(th.cdb, nid, types.RandomBytes(11)))
+				require.NoError(t, identities.SaveMalfeasanceProof(th.cdb, nid, types.MultipleBallots, types.RandomBytes(11)))
 			}
 
 			out, err := th.handleMaliciousIDsReq(context.TODO(), []byte{})

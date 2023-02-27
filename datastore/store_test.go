@@ -43,7 +43,7 @@ func TestMalfeasanceProof_Honest(t *testing.T) {
 	require.Equal(t, 1, cdb.MalfeasanceCacheSize())
 
 	// secretly save the proof to database
-	require.NoError(t, identities.SetMalicious(db, nodeID1, []byte("bad")))
+	require.NoError(t, identities.SaveMalfeasanceProof(db, nodeID1, types.MultipleATXs, []byte("bad")))
 	bad, err := identities.IsMalicious(db, nodeID1)
 	require.NoError(t, err)
 	require.True(t, bad)
@@ -66,7 +66,7 @@ func TestMalfeasanceProof_Honest(t *testing.T) {
 	require.Equal(t, 2, cdb.MalfeasanceCacheSize())
 
 	// secretly save the proof to database
-	require.NoError(t, identities.SetMalicious(db, nodeID2, []byte("bad")))
+	require.NoError(t, identities.SaveMalfeasanceProof(db, nodeID2, types.MultipleATXs, []byte("bad")))
 	bad, err = identities.IsMalicious(db, nodeID2)
 	require.NoError(t, err)
 	require.True(t, bad)
@@ -76,7 +76,7 @@ func TestMalfeasanceProof_Honest(t *testing.T) {
 	proof := &types.MalfeasanceProof{
 		Layer: types.NewLayerID(11),
 		Proof: types.Proof{
-			Type: types.MultipleBallots,
+			Type: types.MultipleATXs,
 			Data: &types.BallotProof{
 				Messages: [2]types.BallotProofMsg{
 					{},
@@ -127,7 +127,7 @@ func TestMalfeasanceProof_Dishonest(t *testing.T) {
 	// secretly save the proof to database for a different id
 	encoded, err := codec.Encode(proof)
 	require.NoError(t, err)
-	require.NoError(t, identities.SetMalicious(db, nodeID2, encoded))
+	require.NoError(t, identities.SaveMalfeasanceProof(db, nodeID2, types.MultipleATXs, encoded))
 	bad, err := identities.IsMalicious(db, nodeID2)
 	require.NoError(t, err)
 	require.True(t, bad)
@@ -144,6 +144,57 @@ func TestMalfeasanceProof_Dishonest(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, proof, got)
 	require.Equal(t, 2, cdb.MalfeasanceCacheSize())
+}
+
+func TestIsMalicious(t *testing.T) {
+	tt := []struct {
+		name     string
+		malType  byte
+		expected bool
+	}{
+		{
+			name:     "atxs",
+			malType:  types.MultipleATXs,
+			expected: true,
+		},
+		{
+			name:    "ballots",
+			malType: types.MultipleBallots,
+		},
+		{
+			name:    "hare",
+			malType: types.HareEquivocation,
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cdb := datastore.NewCachedDB(sql.InMemory(), logtest.New(t))
+
+			// a bad guy
+			proof := &types.MalfeasanceProof{
+				Layer: types.NewLayerID(11),
+				Proof: types.Proof{
+					Type: tc.malType,
+					Data: &types.BallotProof{
+						Messages: [2]types.BallotProofMsg{
+							{},
+							{},
+						},
+					},
+				},
+			}
+
+			nodeID := types.NodeID{1}
+			require.NoError(t, cdb.AddMalfeasanceProof(nodeID, proof, nil))
+			got, err := cdb.IsMalicious(nodeID)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, got)
+		})
+	}
 }
 
 func TestIdentityExists(t *testing.T) {
@@ -397,7 +448,7 @@ func TestBlobStore_GetMalfeasanceBlob(t *testing.T) {
 
 	_, err = bs.Get(datastore.Malfeasance, nodeID.Bytes())
 	require.ErrorIs(t, err, sql.ErrNotFound)
-	require.NoError(t, identities.SetMalicious(db, nodeID, encoded))
+	require.NoError(t, identities.SaveMalfeasanceProof(db, nodeID, types.MultipleATXs, encoded))
 	got, err := bs.Get(datastore.Malfeasance, nodeID.Bytes())
 	require.NoError(t, err)
 	require.Equal(t, encoded, got)

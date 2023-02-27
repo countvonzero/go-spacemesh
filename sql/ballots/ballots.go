@@ -9,6 +9,7 @@ import (
 	"github.com/spacemeshos/go-spacemesh/codec"
 	"github.com/spacemeshos/go-spacemesh/common/types"
 	"github.com/spacemeshos/go-spacemesh/sql"
+	"github.com/spacemeshos/go-spacemesh/sql/identities"
 )
 
 func decodeBallot(id types.BallotID, pubkey, body *bytes.Reader, malicious bool) (*types.Ballot, error) {
@@ -72,11 +73,12 @@ func Has(db sql.Executor, id types.BallotID) (bool, error) {
 
 // Get ballot with id from database.
 func Get(db sql.Executor, id types.BallotID) (rst *types.Ballot, err error) {
-	if rows, err := db.Exec(`select pubkey, ballot, length(identities.proof)
-	from ballots left join identities using(pubkey)
+	if rows, err := db.Exec(`select pubkey, ballot, length(ids.proof)
+	from ballots left join (select pubkey, proof from identities where proof_type = ?2) as ids using(pubkey)
 	where id = ?1;`,
 		func(stmt *sql.Statement) {
 			stmt.BindBytes(1, id.Bytes())
+			stmt.BindInt64(2, int64(identities.Atx))
 		}, func(stmt *sql.Statement) bool {
 			rst, err = decodeBallot(id,
 				stmt.ColumnReader(0),
@@ -94,10 +96,11 @@ func Get(db sql.Executor, id types.BallotID) (rst *types.Ballot, err error) {
 
 // Layer returns full body ballot for layer.
 func Layer(db sql.Executor, lid types.LayerID) (rst []*types.Ballot, err error) {
-	if _, err = db.Exec(`select id, pubkey, ballot, length(identities.proof)
-		from ballots left join identities using(pubkey)
+	if _, err = db.Exec(`select id, ballots.pubkey, ballot, length(ids.proof)
+		from ballots left join (select pubkey, proof from identities where proof_type = ?2) as ids using(pubkey)
 		where layer = ?1;`, func(stmt *sql.Statement) {
 		stmt.BindInt64(1, int64(lid.Value))
+		stmt.BindInt64(2, int64(identities.Atx))
 	}, func(stmt *sql.Statement) bool {
 		id := types.BallotID{}
 		stmt.ColumnBytes(0, id[:])

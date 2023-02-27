@@ -37,20 +37,56 @@ func TestMalicious(t *testing.T) {
 	}
 	data, err := codec.Encode(proof)
 	require.NoError(t, err)
-	require.NoError(t, SetMalicious(db, nodeID, data))
+	require.NoError(t, SaveMalfeasanceProof(db, nodeID, types.MultipleBallots, data))
 
 	mal, err = IsMalicious(db, nodeID)
 	require.NoError(t, err)
-	require.True(t, mal)
+	require.False(t, mal)
 
 	got, err := GetMalfeasanceProof(db, nodeID)
 	require.NoError(t, err)
 	require.EqualValues(t, proof, got)
 }
 
+func TestIsMalicious(t *testing.T) {
+	tt := []struct {
+		name     string
+		malType  byte
+		expected bool
+	}{
+		{
+			name:     "atxs",
+			malType:  types.MultipleATXs,
+			expected: true,
+		},
+		{
+			name:    "ballots",
+			malType: types.MultipleBallots,
+		},
+		{
+			name:    "hare",
+			malType: types.HareEquivocation,
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			db := sql.InMemory()
+			nodeID := types.NodeID{1}
+			require.NoError(t, SaveMalfeasanceProof(db, nodeID, tc.malType, []byte("bad guy")))
+			got, err := IsMalicious(db, nodeID)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, got)
+		})
+	}
+}
+
 func Test_GetMalicious(t *testing.T) {
 	db := sql.InMemory()
-	got, err := GetMalicious(db)
+	got, err := IDsWithMalfeasanceProof(db)
 	require.NoError(t, err)
 	require.Nil(t, got)
 
@@ -59,9 +95,9 @@ func Test_GetMalicious(t *testing.T) {
 	for i := 0; i < numBad; i++ {
 		nid := types.NodeID{byte(i + 1)}
 		bad = append(bad, nid)
-		require.NoError(t, SetMalicious(db, nid, types.RandomBytes(11)))
+		require.NoError(t, SaveMalfeasanceProof(db, nid, types.MultipleATXs, types.RandomBytes(11)))
 	}
-	got, err = GetMalicious(db)
+	got, err = IDsWithMalfeasanceProof(db)
 	require.NoError(t, err)
 	require.Equal(t, bad, got)
 }

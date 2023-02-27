@@ -52,6 +52,8 @@ func (db *CachedDB) MalfeasanceCacheSize() int {
 }
 
 // IsMalicious returns true if the NodeID is malicious.
+// cause all types of proofs to cancel identities after the following issue is resolved.
+// https://github.com/spacemeshos/go-spacemesh/issues/4067
 func (db *CachedDB) IsMalicious(id types.NodeID) (bool, error) {
 	if id == types.EmptyNodeID {
 		log.Fatal("invalid argument to IsMalicious")
@@ -60,7 +62,7 @@ func (db *CachedDB) IsMalicious(id types.NodeID) (bool, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	if proof, ok := db.malfeasanceCache.Get(id); ok {
-		if proof == nil {
+		if proof == nil || proof.Proof.Type != types.MultipleATXs {
 			return false, nil
 		} else {
 			return true, nil
@@ -117,7 +119,7 @@ func (db *CachedDB) AddMalfeasanceProof(id types.NodeID, proof *types.Malfeasanc
 
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	if err = identities.SetMalicious(exec, id, encoded); err != nil {
+	if err = identities.SaveMalfeasanceProof(exec, id, proof.Proof.Type, encoded); err != nil {
 		return err
 	}
 

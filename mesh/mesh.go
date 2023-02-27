@@ -716,7 +716,6 @@ func (msh *Mesh) AddBallot(ctx context.Context, ballot *types.Ballot) (*types.Ma
 				if err = msh.cdb.AddMalfeasanceProof(ballot.SmesherID(), proof, dbtx); err != nil {
 					return err
 				}
-				ballot.SetMalicious()
 				msh.logger.With().Warning("smesher produced more than one ballot in the same layer",
 					log.Stringer("smesher", ballot.SmesherID()),
 					log.Object("prev", prev),
