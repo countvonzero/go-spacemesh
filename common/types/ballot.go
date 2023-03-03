@@ -204,7 +204,7 @@ type EpochData struct {
 
 // Initialize calculates and sets the Ballot's cached ballotID and smesherID.
 // this should be called once all the other fields of the Ballot are set.
-func (b *Ballot) Initialize() error {
+func (b *Ballot) Initialize(extractor keyExtractor) error {
 	if b.ID() != EmptyBallotID {
 		return fmt.Errorf("ballot already initialized")
 	}
@@ -228,7 +228,7 @@ func (b *Ballot) Initialize() error {
 	b.ballotID = BallotID(BytesToHash(hasher.Sum(nil)).ToHash20())
 
 	data := b.SignedBytes()
-	nodeId, err := ExtractNodeIDFromSig(data, b.Signature)
+	nodeId, err := extractor.ExtractNodeID(data, b.Signature)
 	if err != nil {
 		return fmt.Errorf("ballot extract key: %w", err)
 	}

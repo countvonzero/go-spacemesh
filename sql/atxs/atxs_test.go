@@ -400,9 +400,11 @@ func newAtx(signer *signing.EdSigner, layerID types.LayerID) (*types.VerifiedAct
 	}
 
 	activation.SignAndFinalizeAtx(signer, atx)
+	nodeID := signer.NodeID()
+	atx.SetNodeID(&nodeID)
 	atx.SetEffectiveNumUnits(atx.NumUnits)
 	atx.SetReceived(time.Now().Local())
-	return atx.Verify(0, 1)
+	return atx.Verify(0, 1, nil)
 }
 
 func TestPositioningID(t *testing.T) {
@@ -439,6 +441,8 @@ func TestPositioningID(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			db := sql.InMemory()
 			ids := []types.ATXID{}
+			extract, err := signing.NewPubKeyExtractor()
+			require.NoError(t, err)
 			for _, atx := range tc.atxs {
 				full := &types.ActivationTx{
 					InnerActivationTx: types.InnerActivationTx{
@@ -456,7 +460,7 @@ func TestPositioningID(t *testing.T) {
 
 				full.SetEffectiveNumUnits(full.NumUnits)
 				full.SetReceived(time.Now())
-				vAtx, err := full.Verify(atx.base, atx.count)
+				vAtx, err := full.Verify(atx.base, atx.count, extract)
 				require.NoError(t, err)
 
 				require.NoError(t, atxs.Add(db, vAtx))

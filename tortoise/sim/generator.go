@@ -115,7 +115,8 @@ type Generator struct {
 	ticks       []uint64
 	prevHeight  []uint64
 
-	keys []*signing.EdSigner
+	keys      []*signing.EdSigner
+	extractor *signing.PubKeyExtractor
 }
 
 // SetupOpt configures setup.
@@ -216,6 +217,11 @@ func (g *Generator) Setup(opts ...SetupOpt) {
 		}
 		g.keys = append(g.keys, sig)
 	}
+	var err error
+	g.extractor, err = signing.NewPubKeyExtractor()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (g *Generator) generateAtxs() {
@@ -225,6 +231,7 @@ func (g *Generator) generateAtxs() {
 		if err != nil {
 			panic(err)
 		}
+
 		nodeID := sig.NodeID()
 		address := types.GenerateAddress(sig.PublicKey().Bytes())
 
@@ -243,7 +250,7 @@ func (g *Generator) generateAtxs() {
 		}
 		atx.SetEffectiveNumUnits(atx.NumUnits)
 		atx.SetReceived(time.Now())
-		vAtx, err := atx.Verify(g.prevHeight[i], ticks)
+		vAtx, err := atx.Verify(g.prevHeight[i], ticks, g.extractor)
 		if err != nil {
 			panic(err)
 		}

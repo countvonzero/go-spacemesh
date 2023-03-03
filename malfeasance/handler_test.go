@@ -38,7 +38,7 @@ func createIdentity(t *testing.T, db *sql.Database, sig *signing.EdSigner) {
 	require.NoError(t, activation.SignAndFinalizeAtx(sig, atx))
 	atx.SetEffectiveNumUnits(atx.NumUnits)
 	atx.SetReceived(time.Now())
-	vAtx, err := atx.Verify(0, 1)
+	vAtx, err := atx.Verify(0, 1, nil)
 	require.NoError(t, err)
 	require.NoError(t, atxs.Add(db, vAtx))
 }
@@ -49,8 +49,9 @@ func TestHandler_HandleMalfeasanceProof_multipleATXs(t *testing.T) {
 	mcp := malfeasance.NewMockconsensusProtocol(gomock.NewController(t))
 	pke, err := signing.NewPubKeyExtractor()
 	require.NoError(t, err)
+	extractors := map[byte]*signing.PubKeyExtractor{types.MultipleATXs: pke}
 
-	h := malfeasance.NewHandler(datastore.NewCachedDB(db, lg), lg, "self", mcp, pke)
+	h := malfeasance.NewHandler(datastore.NewCachedDB(db, lg), lg, "self", mcp, extractors)
 	sig, err := signing.NewEdSigner()
 	require.NoError(t, err)
 	lid := types.NewLayerID(11)
@@ -244,8 +245,9 @@ func TestHandler_HandleMalfeasanceProof_multipleBallots(t *testing.T) {
 	mcp := malfeasance.NewMockconsensusProtocol(gomock.NewController(t))
 	pke, err := signing.NewPubKeyExtractor()
 	require.NoError(t, err)
+	extractors := map[byte]*signing.PubKeyExtractor{types.MultipleBallots: pke}
 
-	h := malfeasance.NewHandler(datastore.NewCachedDB(db, lg), lg, "self", mcp, pke)
+	h := malfeasance.NewHandler(datastore.NewCachedDB(db, lg), lg, "self", mcp, extractors)
 	sig, err := signing.NewEdSigner()
 	require.NoError(t, err)
 	lid := types.NewLayerID(11)
@@ -439,8 +441,9 @@ func TestHandler_HandleMalfeasanceProof_hareEquivocation(t *testing.T) {
 	mcp := malfeasance.NewMockconsensusProtocol(gomock.NewController(t))
 	pke, err := signing.NewPubKeyExtractor()
 	require.NoError(t, err)
+	extractors := map[byte]*signing.PubKeyExtractor{types.HareEquivocation: pke}
 
-	h := malfeasance.NewHandler(datastore.NewCachedDB(db, lg), lg, "self", mcp, pke)
+	h := malfeasance.NewHandler(datastore.NewCachedDB(db, lg), lg, "self", mcp, extractors)
 	sig, err := signing.NewEdSigner()
 	require.NoError(t, err)
 	lid := types.NewLayerID(11)
@@ -659,8 +662,9 @@ func TestHandler_HandleMalfeasanceProof_validateHare(t *testing.T) {
 	mcp := malfeasance.NewMockconsensusProtocol(gomock.NewController(t))
 	pke, err := signing.NewPubKeyExtractor()
 	require.NoError(t, err)
+	extractors := map[byte]*signing.PubKeyExtractor{types.MultipleBallots: pke}
 
-	h := malfeasance.NewHandler(datastore.NewCachedDB(db, lg), lg, "self", mcp, pke)
+	h := malfeasance.NewHandler(datastore.NewCachedDB(db, lg), lg, "self", mcp, extractors)
 	sig, err := signing.NewEdSigner()
 	require.NoError(t, err)
 	createIdentity(t, db, sig)

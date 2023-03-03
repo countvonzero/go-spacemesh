@@ -155,6 +155,8 @@ func TestReferenceHeight(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			cdb := datastore.NewCachedDB(sql.InMemory(), logtest.New(t))
+			extract, err := signing.NewPubKeyExtractor()
+			require.NoError(t, err)
 			for i, height := range tc.heights {
 				atx := &types.ActivationTx{InnerActivationTx: types.InnerActivationTx{
 					NIPostChallenge: types.NIPostChallenge{
@@ -168,7 +170,7 @@ func TestReferenceHeight(t *testing.T) {
 				require.NoError(t, activation.SignAndFinalizeAtx(sig, atx))
 				atx.SetEffectiveNumUnits(atx.NumUnits)
 				atx.SetReceived(time.Now())
-				vAtx, err := atx.Verify(0, uint64(height))
+				vAtx, err := atx.Verify(0, uint64(height), extract)
 				require.NoError(t, err)
 				require.NoError(t, atxs.Add(cdb, vAtx))
 			}

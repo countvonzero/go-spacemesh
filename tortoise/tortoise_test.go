@@ -481,7 +481,7 @@ func TestComputeExpectedWeight(t *testing.T) {
 				atx.SetNodeID(&types.NodeID{})
 				atx.SetEffectiveNumUnits(atx.NumUnits)
 				atx.SetReceived(time.Now())
-				vAtx, err := atx.Verify(0, 1)
+				vAtx, err := atx.Verify(0, 1, nil)
 				require.NoError(t, err)
 				require.NoError(t, atxs.Add(cdb, vAtx))
 			}
@@ -773,6 +773,8 @@ func randomRefBallot(tb testing.TB, lyrID types.LayerID, beacon types.Beacon) *t
 
 	signer, err := signing.NewEdSigner()
 	require.NoError(tb, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(tb, err)
 
 	ballot := types.RandomBallot()
 	ballot.Layer = lyrID
@@ -780,7 +782,7 @@ func randomRefBallot(tb testing.TB, lyrID types.LayerID, beacon types.Beacon) *t
 		Beacon: beacon,
 	}
 	ballot.Signature = signer.Sign(ballot.SignedBytes())
-	require.NoError(tb, ballot.Initialize())
+	require.NoError(tb, ballot.Initialize(extract))
 	return ballot
 }
 
@@ -1525,7 +1527,7 @@ func TestComputeBallotWeight(t *testing.T) {
 				atx.SetID(&atxID)
 				atx.SetEffectiveNumUnits(atx.NumUnits)
 				atx.SetReceived(time.Now())
-				vAtx, err := atx.Verify(0, 1)
+				vAtx, err := atx.Verify(0, 1, nil)
 				require.NoError(t, err)
 				require.NoError(t, atxs.Add(cdb, vAtx))
 				atxids = append(atxids, atxID)
@@ -1556,9 +1558,11 @@ func TestComputeBallotWeight(t *testing.T) {
 
 				sig, err := signing.NewEdSigner()
 				require.NoError(t, err)
+				extract, err := signing.NewPubKeyExtractor()
+				require.NoError(t, err)
 
 				ballot.Signature = sig.Sign(ballot.SignedBytes())
-				require.NoError(t, ballot.Initialize())
+				require.NoError(t, ballot.Initialize(extract))
 				blts = append(blts, ballot)
 
 				trtl.OnBallot(ballot)
@@ -1811,10 +1815,12 @@ func TestLateBaseBallot(t *testing.T) {
 
 	buf, err := codec.Encode(blts[0])
 	require.NoError(t, err)
+	extractor, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 	var base types.Ballot
 	require.NoError(t, codec.Decode(buf, &base))
 	base.EligibilityProofs[0].J++
-	base.Initialize()
+	base.Initialize(extractor)
 	tortoise.OnBallot(&base)
 
 	for _, last = range sim.GenLayers(s,
@@ -2752,7 +2758,7 @@ func TestEncodeVotes(t *testing.T) {
 		atx.SetNodeID(&types.NodeID{1})
 		atx.SetEffectiveNumUnits(atx.NumUnits)
 		atx.SetReceived(time.Now())
-		vatx, err := atx.Verify(1, 1)
+		vatx, err := atx.Verify(1, 1, nil)
 		require.NoError(t, err)
 		require.NoError(t, atxs.Add(cdb, vatx))
 

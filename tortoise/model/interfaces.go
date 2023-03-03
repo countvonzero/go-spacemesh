@@ -10,3 +10,7 @@ type signer interface {
 	PublicKey() *signing.PublicKey
 	NodeID() types.NodeID
 }
+
+type extractor interface {
+	ExtractNodeID(msg, sig []byte) (types.NodeID, error)
+}

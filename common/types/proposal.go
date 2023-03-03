@@ -66,17 +66,17 @@ type InnerProposal struct {
 
 // Initialize calculates and sets the Proposal's cached proposalID.
 // this should be called once all the other fields of the Proposal are set.
-func (p *Proposal) Initialize() error {
+func (p *Proposal) Initialize(extractor keyExtractor) error {
 	if p.ID() != EmptyProposalID {
 		return fmt.Errorf("proposal already initialized")
 	}
 
-	if err := p.Ballot.Initialize(); err != nil {
+	if err := p.Ballot.Initialize(extractor); err != nil {
 		return err
 	}
 
 	// check proposal signature consistent with ballot's
-	nodeId, err := ExtractNodeIDFromSig(p.Bytes(), p.Signature)
+	nodeId, err := extractor.ExtractNodeID(p.Bytes(), p.Signature)
 	if err != nil {
 		return fmt.Errorf("proposal extract nodeId: %w", err)
 	}

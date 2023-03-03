@@ -45,7 +45,9 @@ type testBuilder struct {
 
 func createBuilder(tb testing.TB) *testBuilder {
 	types.SetLayersPerEpoch(layersPerEpoch)
-	nodeID, edSigner, vrfSigner := generateNodeIDAndSigner(tb)
+	edSigner, vrfSigner := generateNodeIDAndSigner(tb)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(tb, err)
 	ctrl := gomock.NewController(tb)
 	pb := &testBuilder{
 		mOracle:   NewMockproposalOracle(ctrl),
@@ -59,12 +61,11 @@ func createBuilder(tb testing.TB) *testBuilder {
 	}
 	lg := logtest.New(tb)
 	cdb := datastore.NewCachedDB(sql.InMemory(), lg)
-	pb.ProposalBuilder = NewProposalBuilder(context.Background(), pb.mClock, edSigner, vrfSigner,
+	pb.ProposalBuilder = NewProposalBuilder(context.Background(), pb.mClock, edSigner, extract, vrfSigner,
 		cdb, pb.mPubSub, pb.mTortoise, pb.mBeacon, pb.mSync, pb.mCState,
 		WithLogger(lg),
 		WithLayerSize(20),
 		WithLayerPerEpoch(3),
-		WithMinerID(nodeID),
 		WithHdist(3),
 		withOracle(pb.mOracle),
 		withNonceFetcher(pb.mNonce),
@@ -172,11 +173,13 @@ func TestBuilder_HandleLayer_MultipleProposals(t *testing.T) {
 	}
 	meshHash := types.RandomHash()
 	require.NoError(t, layers.SetMeshHash(b.cdb, layerID.Sub(1), meshHash))
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 	b.mPubSub.EXPECT().Publish(gomock.Any(), pubsub.ProposalProtocol, gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ string, data []byte) error {
 			var p types.Proposal
 			require.NoError(t, codec.Decode(data, &p))
-			require.NoError(t, p.Initialize())
+			require.NoError(t, p.Initialize(extract))
 			require.Equal(t, types.EmptyBallotID, p.RefBallot)
 			require.Equal(t, base, p.Votes.Base)
 			require.Equal(t, atxID, p.AtxID)
@@ -233,11 +236,13 @@ func TestBuilder_HandleLayer_OneProposal(t *testing.T) {
 	}
 	meshHash := types.RandomHash()
 	require.NoError(t, layers.SetMeshHash(b.cdb, layerID.Sub(1), meshHash))
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 	b.mPubSub.EXPECT().Publish(gomock.Any(), pubsub.ProposalProtocol, gomock.Any()).DoAndReturn(
 		func(_ context.Context, _ string, data []byte) error {
 			var p types.Proposal
 			require.NoError(t, codec.Decode(data, &p))
-			require.NoError(t, p.Initialize())
+			require.NoError(t, p.Initialize(extract))
 			require.Equal(t, types.EmptyBallotID, p.RefBallot)
 			require.Equal(t, bb, p.Votes.Base)
 			require.Equal(t, atxID, p.AtxID)

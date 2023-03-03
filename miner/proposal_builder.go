@@ -51,6 +51,7 @@ type ProposalBuilder struct {
 	clock          layerClock
 	publisher      pubsub.Publisher
 	signer         *signing.EdSigner
+	extractor      *signing.PubKeyExtractor
 	nonceFetcher   nonceFetcher
 	conState       conservativeState
 	tortoise       votesEncoder
@@ -64,7 +65,6 @@ type config struct {
 	layerSize      uint32
 	layersPerEpoch uint32
 	hdist          uint32
-	minerID        types.NodeID
 }
 
 type defaultFetcher struct {
@@ -93,13 +93,6 @@ func WithLayerSize(size uint32) Opt {
 func WithLayerPerEpoch(layers uint32) Opt {
 	return func(pb *ProposalBuilder) {
 		pb.cfg.layersPerEpoch = layers
-	}
-}
-
-// WithMinerID defines the miner's NodeID.
-func WithMinerID(id types.NodeID) Opt {
-	return func(pb *ProposalBuilder) {
-		pb.cfg.minerID = id
 	}
 }
 
@@ -133,6 +126,7 @@ func NewProposalBuilder(
 	ctx context.Context,
 	clock layerClock,
 	signer *signing.EdSigner,
+	extractor *signing.PubKeyExtractor,
 	vrfSigner *signing.VRFSigner,
 	cdb *datastore.CachedDB,
 	publisher pubsub.Publisher,
@@ -148,6 +142,7 @@ func NewProposalBuilder(
 		ctx:            sctx,
 		cancel:         cancel,
 		signer:         signer,
+		extractor:      extractor,
 		clock:          clock,
 		cdb:            cdb,
 		publisher:      publisher,
@@ -162,7 +157,7 @@ func NewProposalBuilder(
 	}
 
 	if pb.proposalOracle == nil {
-		pb.proposalOracle = newMinerOracle(pb.cfg.layerSize, pb.cfg.layersPerEpoch, cdb, vrfSigner, pb.cfg.minerID, pb.logger)
+		pb.proposalOracle = newMinerOracle(pb.cfg.layerSize, pb.cfg.layersPerEpoch, cdb, vrfSigner, pb.logger)
 	}
 
 	if pb.nonceFetcher == nil {
@@ -257,7 +252,7 @@ func (pb *ProposalBuilder) createProposal(
 	}
 	p.Ballot.Signature = pb.signer.Sign(p.Ballot.SignedBytes())
 	p.Signature = pb.signer.Sign(p.Bytes())
-	if err := p.Initialize(); err != nil {
+	if err := p.Initialize(pb.extractor); err != nil {
 		logger.Panic("proposal failed to initialize", log.Err(err))
 	}
 	logger.Event().Info("proposal created", p.ID(), log.Int("num_txs", len(p.TxIDs)))

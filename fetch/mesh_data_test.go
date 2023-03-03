@@ -269,9 +269,11 @@ func genLayerProposal(tb testing.TB, layerID types.LayerID, txs []types.Transact
 	}
 	signer, err := signing.NewEdSigner()
 	require.NoError(tb, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(tb, err)
 	p.Ballot.Signature = signer.Sign(p.Ballot.SignedBytes())
 	p.Signature = signer.Sign(p.Bytes())
-	p.Initialize()
+	p.Initialize(extract)
 	return p
 }
 
@@ -280,8 +282,10 @@ func genLayerBallot(tb testing.TB, layerID types.LayerID) *types.Ballot {
 	b.Layer = layerID
 	signer, err := signing.NewEdSigner()
 	require.NoError(tb, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(tb, err)
 	b.Signature = signer.Sign(b.SignedBytes())
-	b.Initialize()
+	b.Initialize(extract)
 	return b
 }
 

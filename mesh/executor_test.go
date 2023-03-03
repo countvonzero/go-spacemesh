@@ -77,11 +77,10 @@ func createATX(t testing.TB, db sql.Executor, cb types.Address) types.ATXID {
 		nil,
 		&nonce,
 	)
-
 	atx.SetEffectiveNumUnits(atx.NumUnits)
 	atx.SetReceived(time.Now())
 	require.NoError(t, activation.SignAndFinalizeAtx(sig, atx))
-	vAtx, err := atx.Verify(0, 1)
+	vAtx, err := atx.Verify(0, 1, nil)
 	require.NoError(t, err)
 	require.NoError(t, atxs.Add(db, vAtx))
 	return vAtx.ID()

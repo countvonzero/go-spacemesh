@@ -31,6 +31,10 @@ func newCore(rng *rand.Rand, id string, logger log.Log) *core {
 	if err != nil {
 		panic(err)
 	}
+	ext, err := signing.NewPubKeyExtractor()
+	if err != nil {
+		panic(err)
+	}
 	c := &core{
 		id:      id,
 		logger:  logger,
@@ -39,6 +43,7 @@ func newCore(rng *rand.Rand, id string, logger log.Log) *core {
 		beacons: newBeaconStore(),
 		units:   units,
 		signer:  sig,
+		extract: ext,
 	}
 	cfg := tortoise.DefaultConfig()
 	cfg.LayerSize = layerSize
@@ -60,8 +65,9 @@ type core struct {
 	tortoise *tortoise.Tortoise
 
 	// generated on setup
-	units  uint32
-	signer signer
+	units   uint32
+	signer  signer
+	extract extractor
 
 	// set in the first layer of each epoch
 	refBallot     *types.BallotID
@@ -120,7 +126,7 @@ func (c *core) OnMessage(m Messenger, event Message) {
 			}
 		}
 		ballot.Signature = c.signer.Sign(ballot.SignedBytes())
-		ballot.Initialize()
+		ballot.Initialize(c.extract)
 		if c.refBallot == nil {
 			id := ballot.ID()
 			c.refBallot = &id
@@ -147,7 +153,7 @@ func (c *core) OnMessage(m Messenger, event Message) {
 		}
 		atx.SetEffectiveNumUnits(atx.NumUnits)
 		atx.SetReceived(time.Now())
-		vAtx, err := atx.Verify(1, 2)
+		vAtx, err := atx.Verify(1, 2, c.extract)
 		if err != nil {
 			c.logger.With().Fatal("failed to verify atx", log.Err(err))
 		}
@@ -166,7 +172,7 @@ func (c *core) OnMessage(m Messenger, event Message) {
 	case MessageBallot:
 		ballots.Add(c.cdb, ev.Ballot)
 	case MessageAtx:
-		vAtx, err := ev.Atx.Verify(1, 2)
+		vAtx, err := ev.Atx.Verify(1, 2, c.extract)
 		if err != nil {
 			panic(err)
 		}

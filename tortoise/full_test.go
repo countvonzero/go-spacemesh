@@ -100,6 +100,9 @@ func TestFullCountVotes(t *testing.T) {
 
 	genesis := types.GetEffectiveGenesis()
 
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
+
 	for _, tc := range []struct {
 		desc         string
 		activeset    []testAtx      // list of atxs
@@ -228,7 +231,8 @@ func TestFullCountVotes(t *testing.T) {
 			activeset: []testAtx{{TickCount: 10}, {TickCount: 10}, {TickCount: 10}},
 			layerBlocks: [][]testBlock{
 				{{}, {}, {}},
-			}, layerBallots: [][]testBallot{
+			},
+			layerBallots: [][]testBallot{
 				{{ATX: 0}, {ATX: 1}, {ATX: 2}},
 				{
 					{ATX: 0, Base: [2]int{0, 1}, Support: [][2]int{{0, 1}, {0, 0}, {0, 2}}},
@@ -338,7 +342,7 @@ func TestFullCountVotes(t *testing.T) {
 				atx.SetNodeID(&types.NodeID{1})
 				atx.SetEffectiveNumUnits(atx.NumUnits)
 				atx.SetReceived(time.Now())
-				vAtx, err := atx.Verify(tc.activeset[i].BaseHeight, tc.activeset[i].TickCount)
+				vAtx, err := atx.Verify(tc.activeset[i].BaseHeight, tc.activeset[i].TickCount, nil)
 				require.NoError(t, err)
 				require.NoError(t, atxs.Add(cdb, vAtx))
 				activeset = append(activeset, atxid)
@@ -398,7 +402,7 @@ func TestFullCountVotes(t *testing.T) {
 					}
 					ballot.OpinionHash = types.RandomHash() // fake opinion, only to make sure each ballot has a unique ID
 					ballot.Signature = signer.Sign(ballot.SignedBytes())
-					require.NoError(t, ballot.Initialize())
+					require.NoError(t, ballot.Initialize(extract))
 					layerBallots = append(layerBallots, ballot)
 				}
 				ballotsList = append(ballotsList, layerBallots)

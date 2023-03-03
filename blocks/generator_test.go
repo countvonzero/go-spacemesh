@@ -114,7 +114,7 @@ func createAndSaveTxs(tb testing.TB, numOfTxs int, db sql.Executor) []types.Tran
 
 func createATXs(t *testing.T, cdb *datastore.CachedDB, lid types.LayerID, numATXs int) ([]*signing.EdSigner, []*types.ActivationTx) {
 	return createModifiedATXs(t, cdb, lid, numATXs, func(atx *types.ActivationTx) (*types.VerifiedActivationTx, error) {
-		return atx.Verify(baseTickHeight, 1)
+		return atx.Verify(baseTickHeight, 1, nil)
 	})
 }
 
@@ -211,7 +211,9 @@ func createProposal(
 	}
 	p.Ballot.Signature = signer.Sign(p.Ballot.SignedBytes())
 	p.Signature = signer.Sign(p.Bytes())
-	require.NoError(t, p.Initialize())
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
+	require.NoError(t, p.Initialize(extract))
 	return p
 }
 
@@ -471,7 +473,7 @@ func Test_generateBlock_UnequalHeight(t *testing.T) {
 		if n > max {
 			max = n
 		}
-		return atx.Verify(n, 1)
+		return atx.Verify(n, 1, nil)
 	})
 	activeSet := types.ToATXIDs(atxes)
 	pList := createProposals(t, tg.cdb, layerID, types.Hash32{}, signers, activeSet, nil)

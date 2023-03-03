@@ -74,9 +74,11 @@ func fullMockSet(tb testing.TB) *mockSet {
 
 func createTestHandler(t *testing.T) *testHandler {
 	types.SetLayersPerEpoch(layersPerEpoch)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 	ms := fullMockSet(t)
 	return &testHandler{
-		Handler: NewHandler(datastore.NewCachedDB(sql.InMemory(), logtest.New(t)), ms.mpub, ms.mf, ms.mbc, ms.mm, ms.md, ms.mvrf,
+		Handler: NewHandler(datastore.NewCachedDB(sql.InMemory(), logtest.New(t)), ms.mpub, ms.mf, ms.mbc, ms.mm, ms.md, extract, ms.mvrf,
 			WithLogger(logtest.New(t)),
 			WithConfig(Config{
 				LayerSize:      layerAvgSize,
@@ -166,9 +168,11 @@ func createProposal(t *testing.T, opts ...any) *types.Proposal {
 	}
 	signer, err := signing.NewEdSigner()
 	require.NoError(t, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 	p.Ballot.Signature = signer.Sign(p.Ballot.SignedBytes())
 	p.Signature = signer.Sign(p.Bytes())
-	require.NoError(t, p.Initialize())
+	require.NoError(t, p.Initialize(extract))
 	return p
 }
 
@@ -192,8 +196,10 @@ func signAndInit(tb testing.TB, b *types.Ballot) *types.Ballot {
 	tb.Helper()
 	sig, err := signing.NewEdSigner()
 	require.NoError(tb, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(tb, err)
 	b.Signature = sig.Sign(b.SignedBytes())
-	require.NoError(tb, b.Initialize())
+	require.NoError(tb, b.Initialize(extract))
 	return b
 }
 

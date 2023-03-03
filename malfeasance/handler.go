@@ -18,11 +18,11 @@ var errMalformedData = errors.New("malformed data")
 
 // Handler processes MalfeasanceProof from gossip and, if deems it valid, propagates it to peers.
 type Handler struct {
-	logger          log.Log
-	cdb             *datastore.CachedDB
-	self            p2p.Peer
-	cp              consensusProtocol
-	pubKeyExtractor *signing.PubKeyExtractor
+	logger     log.Log
+	cdb        *datastore.CachedDB
+	self       p2p.Peer
+	cp         consensusProtocol
+	extractors map[byte]*signing.PubKeyExtractor
 }
 
 func NewHandler(
@@ -30,14 +30,14 @@ func NewHandler(
 	lg log.Log,
 	self p2p.Peer,
 	cp consensusProtocol,
-	pubKeyExtractor *signing.PubKeyExtractor,
+	extractors map[byte]*signing.PubKeyExtractor,
 ) *Handler {
 	return &Handler{
-		logger:          lg,
-		cdb:             cdb,
-		self:            self,
-		cp:              cp,
-		pubKeyExtractor: pubKeyExtractor,
+		logger:     lg,
+		cdb:        cdb,
+		self:       self,
+		cp:         cp,
+		extractors: extractors,
 	}
 }
 
@@ -182,7 +182,7 @@ func (h *Handler) validateHareEquivocation(logger log.Log, proof *types.Malfeasa
 		return types.NodeID{}, errors.New("wrong message type for hare equivocation")
 	}
 	for _, msg = range hp.Messages {
-		nid, err = h.pubKeyExtractor.ExtractNodeID(msg.SignedBytes(), msg.Signature)
+		nid, err = h.extractors[types.HareEquivocation].ExtractNodeID(msg.SignedBytes(), msg.Signature)
 		if err != nil {
 			return types.NodeID{}, err
 		}
@@ -224,7 +224,7 @@ func (h *Handler) validateMultipleATXs(logger log.Log, proof *types.MalfeasanceP
 		return types.NodeID{}, errors.New("wrong message type for multiple ATXs")
 	}
 	for _, msg = range ap.Messages {
-		nid, err = h.pubKeyExtractor.ExtractNodeID(msg.SignedBytes(), msg.Signature)
+		nid, err = h.extractors[types.MultipleATXs].ExtractNodeID(msg.SignedBytes(), msg.Signature)
 		if err != nil {
 			return types.NodeID{}, err
 		}
@@ -265,7 +265,7 @@ func (h *Handler) validateMultipleBallots(logger log.Log, proof *types.Malfeasan
 		return types.NodeID{}, errors.New("wrong message type for multi ballots")
 	}
 	for _, msg = range bp.Messages {
-		nid, err = h.pubKeyExtractor.ExtractNodeID(msg.SignedBytes(), msg.Signature)
+		nid, err = h.extractors[types.MultipleBallots].ExtractNodeID(msg.SignedBytes(), msg.Signature)
 		if err != nil {
 			return types.NodeID{}, err
 		}

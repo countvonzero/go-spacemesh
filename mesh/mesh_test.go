@@ -126,21 +126,23 @@ func createLayerBlocks(t *testing.T, db sql.Executor, mesh *Mesh, lyrID types.La
 	return blks
 }
 
-func genLayerBallot(tb testing.TB, layerID types.LayerID) *types.Ballot {
+func genLayerBallot(tb testing.TB, extract *signing.PubKeyExtractor, layerID types.LayerID) *types.Ballot {
 	b := types.RandomBallot()
 	b.Layer = layerID
 	sig, err := signing.NewEdSigner()
 	require.NoError(tb, err)
 	b.Signature = sig.Sign(b.SignedBytes())
-	require.NoError(tb, b.Initialize())
+	require.NoError(tb, b.Initialize(extract))
 	return b
 }
 
 func createLayerBallots(tb testing.TB, mesh *Mesh, lyrID types.LayerID) []*types.Ballot {
 	tb.Helper()
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(tb, err)
 	blts := make([]*types.Ballot, 0, numBallots)
 	for i := 0; i < numBallots; i++ {
-		ballot := genLayerBallot(tb, lyrID)
+		ballot := genLayerBallot(tb, extract, lyrID)
 		blts = append(blts, ballot)
 		malProof, err := mesh.AddBallot(context.Background(), ballot)
 		require.NoError(tb, err)

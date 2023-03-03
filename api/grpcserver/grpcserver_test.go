@@ -93,6 +93,7 @@ var (
 	signer      *signing.EdSigner
 	signer1     *signing.EdSigner
 	signer2     *signing.EdSigner
+	extract     *signing.PubKeyExtractor
 	globalTx    *types.Transaction
 	globalTx2   *types.Transaction
 	ballot1     = genLayerBallot(types.NewLayerID(11))
@@ -116,7 +117,8 @@ func genLayerBallot(layerID types.LayerID) *types.Ballot {
 	b.Layer = layerID
 	signer, _ := signing.NewEdSigner()
 	b.Signature = signer.Sign(b.SignedBytes())
-	b.Initialize()
+	extr, _ := signing.NewPubKeyExtractor()
+	b.Initialize(extr)
 	return b
 }
 
@@ -178,6 +180,11 @@ func TestMain(m *testing.M) {
 		log.Println("failed to create signer:", err)
 		os.Exit(1)
 	}
+	extract, err = signing.NewPubKeyExtractor()
+	if err != nil {
+		log.Println("failed to create extractor:", err)
+		os.Exit(1)
+	}
 
 	addr1 = wallet.Address(signer1.PublicKey().Bytes())
 	addr2 = wallet.Address(signer2.PublicKey().Bytes())
@@ -189,7 +196,7 @@ func TestMain(m *testing.M) {
 		log.Println("failed to sign atx:", err)
 		os.Exit(1)
 	}
-	globalAtx, err = atx.Verify(0, 1)
+	globalAtx, err = atx.Verify(0, 1, extract)
 	if err != nil {
 		log.Println("failed to verify atx:", err)
 		os.Exit(1)
@@ -202,7 +209,7 @@ func TestMain(m *testing.M) {
 		log.Println("failed to sign atx:", err)
 		os.Exit(1)
 	}
-	globalAtx2, err = atx2.Verify(0, 1)
+	globalAtx2, err = atx2.Verify(0, 1, extract)
 	if err != nil {
 		log.Println("failed to verify atx:", err)
 		os.Exit(1)

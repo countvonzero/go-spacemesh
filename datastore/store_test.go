@@ -151,6 +151,8 @@ func TestIdentityExists(t *testing.T) {
 
 	signer, err := signing.NewEdSigner()
 	require.NoError(t, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 
 	exists, err := cdb.IdentityExists(signer.NodeID())
 	require.NoError(t, err)
@@ -168,7 +170,7 @@ func TestIdentityExists(t *testing.T) {
 	require.NoError(t, activation.SignAndFinalizeAtx(signer, atx))
 	atx.SetReceived(time.Now())
 	atx.SetEffectiveNumUnits(atx.NumUnits)
-	vAtx, err := atx.Verify(0, 1)
+	vAtx, err := atx.Verify(0, 1, extract)
 	require.NoError(t, err)
 	require.NoError(t, atxs.Add(cdb, vAtx))
 
@@ -200,11 +202,13 @@ func TestStore_GetAtxByNodeID(t *testing.T) {
 	}
 	signer, err := signing.NewEdSigner()
 	require.NoError(t, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 	for _, atx := range []*types.ActivationTx{atx3, atx4} {
 		require.NoError(t, activation.SignAndFinalizeAtx(signer, atx))
 		atx.SetEffectiveNumUnits(atx.NumUnits)
 		atx.SetReceived(time.Now())
-		vAtx, err := atx.Verify(0, 1)
+		vAtx, err := atx.Verify(0, 1, extract)
 		require.NoError(t, err)
 		require.NoError(t, atxs.Add(cdb, vAtx))
 	}
@@ -233,10 +237,12 @@ func TestBlobStore_GetATXBlob(t *testing.T) {
 	}
 	signer, err := signing.NewEdSigner()
 	require.NoError(t, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 	require.NoError(t, activation.SignAndFinalizeAtx(signer, atx))
 	atx.SetEffectiveNumUnits(atx.NumUnits)
 	atx.SetReceived(time.Now())
-	vAtx, err := atx.Verify(0, 1)
+	vAtx, err := atx.Verify(0, 1, extract)
 	require.NoError(t, err)
 
 	_, err = bs.Get(datastore.ATXDB, atx.ID().Bytes())
@@ -248,7 +254,7 @@ func TestBlobStore_GetATXBlob(t *testing.T) {
 	var gotA types.ActivationTx
 	require.NoError(t, codec.Decode(got, &gotA))
 	require.NoError(t, gotA.CalcAndSetID())
-	require.NoError(t, gotA.CalcAndSetNodeID())
+	require.NoError(t, gotA.CalcAndSetNodeID(extract))
 	gotA.SetEffectiveNumUnits(gotA.NumUnits)
 	gotA.SetReceived(atx.Received())
 	require.Equal(t, *atx, gotA)
@@ -263,10 +269,12 @@ func TestBlobStore_GetBallotBlob(t *testing.T) {
 
 	sig, err := signing.NewEdSigner()
 	require.NoError(t, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 
 	blt := types.RandomBallot()
 	blt.Signature = sig.Sign(blt.SignedBytes())
-	require.NoError(t, blt.Initialize())
+	require.NoError(t, blt.Initialize(extract))
 
 	_, err = bs.Get(datastore.BallotDB, blt.ID().Bytes())
 	require.ErrorIs(t, err, sql.ErrNotFound)
@@ -275,7 +283,7 @@ func TestBlobStore_GetBallotBlob(t *testing.T) {
 	require.NoError(t, err)
 	var gotB types.Ballot
 	require.NoError(t, codec.Decode(got, &gotB))
-	require.NoError(t, gotB.Initialize())
+	require.NoError(t, gotB.Initialize(extract))
 	require.Equal(t, *blt, gotB)
 
 	_, err = bs.Get(datastore.BlockDB, blt.ID().Bytes())
@@ -333,6 +341,8 @@ func TestBlobStore_GetProposalBlob(t *testing.T) {
 
 	signer, err := signing.NewEdSigner()
 	require.NoError(t, err)
+	extract, err := signing.NewPubKeyExtractor()
+	require.NoError(t, err)
 	blt := types.RandomBallot()
 	blt.Signature = signer.Sign(blt.SignedBytes())
 	p := types.Proposal{
@@ -342,7 +352,7 @@ func TestBlobStore_GetProposalBlob(t *testing.T) {
 		},
 	}
 	p.Signature = signer.Sign(p.Bytes())
-	require.NoError(t, p.Initialize())
+	require.NoError(t, p.Initialize(extract))
 
 	_, err = bs.Get(datastore.ProposalDB, p.ID().Bytes())
 	require.ErrorIs(t, err, sql.ErrNotFound)
@@ -352,7 +362,7 @@ func TestBlobStore_GetProposalBlob(t *testing.T) {
 	require.NoError(t, err)
 	var gotP types.Proposal
 	require.NoError(t, codec.Decode(got, &gotP))
-	require.NoError(t, gotP.Initialize())
+	require.NoError(t, gotP.Initialize(extract))
 	require.Equal(t, p, gotP)
 
 	_, err = bs.Get(datastore.BlockDB, p.ID().Bytes())
